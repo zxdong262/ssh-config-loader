@@ -9,6 +9,43 @@ interface KeyResult {
 }
 
 /**
+ * Find a host config by name (host alias)
+ * Used to resolve jump host details
+ */
+function findHostByName (hosts: SshConfigHost[], name: string): SshConfigHost | undefined {
+  return hosts.find(h => h.host === name)
+}
+
+/**
+ * Apply wildcard defaults to a host
+ * defaults fill in missing properties from host
+ */
+function applyDefaults (host: SshConfigHost, defaults?: SshConfigHost): SshConfigHost {
+  if (defaults == null) return host
+
+  // Start with defaults, then overlay host-specific values
+  // This ensures host-specific values take precedence
+  const result: SshConfigHost = { ...defaults }
+
+  for (const key of Object.keys(host) as Array<keyof SshConfigHost>) {
+    const value = host[key]
+    if (value !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(result as any)[key] = value
+    }
+  }
+
+  // Handle extraOptions specially - merge, with host overriding defaults
+  if (defaults.extraOptions != null && host.extraOptions != null) {
+    result.extraOptions = { ...defaults.extraOptions, ...host.extraOptions }
+  } else if (host.extraOptions != null) {
+    result.extraOptions = host.extraOptions
+  }
+
+  return result
+}
+
+/**
  * Read private key or certificate content
  */
 function readPrivateKey (keyPath: string): KeyResult {
@@ -30,33 +67,50 @@ function readPrivateKey (keyPath: string): KeyResult {
 }
 
 /**
+ * Options for converting SSH config host to bookmark
+ */
+export interface SshConfigHostToBookmarkOptions extends ToBookmarkOptions {
+  /**
+   * Wildcard defaults (Host *)
+   */
+  defaults?: SshConfigHost
+  /**
+   * All hosts in the config (for resolving jump host details)
+   */
+  hosts?: SshConfigHost[]
+}
+
+/**
  * Convert SSH config host to electerm bookmark
  */
 export function sshConfigHostToBookmark (
   host: SshConfigHost,
-  options: ToBookmarkOptions = {}
+  options: SshConfigHostToBookmarkOptions = {}
 ): ElectermBookmarkSsh {
-  const { defaultUsername, defaultPort = 22 } = options
+  const { defaultUsername, defaultPort = 22, defaults, hosts } = options
+
+  // Apply wildcard defaults if provided
+  const resolvedHost = applyDefaults(host, defaults)
 
   const bookmark: ElectermBookmarkSsh = {
     type: 'ssh',
-    host: host.hostName ?? host.host,
-    port: host.port ?? defaultPort,
-    username: host.user ?? defaultUsername ?? '',
+    host: resolvedHost.hostName ?? resolvedHost.host,
+    port: resolvedHost.port ?? defaultPort,
+    username: resolvedHost.user ?? defaultUsername ?? '',
     authType: 'privateKey',
-    title: host.host
+    title: resolvedHost.host
   }
 
   // Add hostname as description if different from host
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if (host.hostName && host.hostName !== host.host) {
-    bookmark.description = `SSH to ${host.hostName}`
+  if (resolvedHost.hostName && resolvedHost.hostName !== resolvedHost.host) {
+    bookmark.description = `SSH to ${resolvedHost.hostName}`
   }
 
   // Handle identity files
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if ((host.identityFileList != null) && host.identityFileList.length > 0) {
-    const keyResult = readPrivateKey(host.identityFileList[0])
+  if ((resolvedHost.identityFileList != null) && resolvedHost.identityFileList.length > 0) {
+    const keyResult = readPrivateKey(resolvedHost.identityFileList[0])
     if (keyResult.content !== undefined) {
       bookmark.privateKey = keyResult.content
     } else if (keyResult.path !== undefined) {
@@ -66,8 +120,8 @@ export function sshConfigHostToBookmark (
 
   // Handle certificate file
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if (host.certificateFile) {
-    const certResult = readPrivateKey(host.certificateFile)
+  if (resolvedHost.certificateFile) {
+    const certResult = readPrivateKey(resolvedHost.certificateFile)
     if (certResult.content !== undefined) {
       bookmark.certificate = certResult.content
     }
@@ -75,13 +129,22 @@ export function sshConfigHostToBookmark (
 
   // Handle proxy jump (SSH hopping)
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  const proxyJumpHosts = host.proxyJumpList ?? (host.proxyJump ? [host.proxyJump] : [])
+  const proxyJumpHosts = resolvedHost.proxyJumpList ?? (resolvedHost.proxyJump ? [resolvedHost.proxyJump] : [])
   if (proxyJumpHosts.length > 0) {
-    const hops = proxyJumpHosts.map((jumpHost) => {
+    const hops = proxyJumpHosts.map((jumpHostName) => {
+      // Try to find jump host config to get actual hostname/port/user
+      const jumpHostConfig = hosts != null ? findHostByName(hosts, jumpHostName) : undefined
+
+      // Apply defaults to jump host as well
+      const resolvedJumpHost = applyDefaults(jumpHostConfig ?? { host: jumpHostName }, defaults)
+
+      // Use jump host's user, or fall back to parent host's user, then defaultUsername
+      const jumpUsername = resolvedJumpHost.user ?? resolvedHost.user ?? defaultUsername ?? ''
+
       return {
-        host: jumpHost,
-        port: 22,
-        username: host.user ?? defaultUsername ?? '',
+        host: resolvedJumpHost.hostName ?? jumpHostName,
+        port: resolvedJumpHost.port ?? 22,
+        username: jumpUsername,
         authType: 'privateKey' as const,
         privateKey: bookmark.privateKey,
         passphrase: bookmark.passphrase
@@ -93,43 +156,47 @@ export function sshConfigHostToBookmark (
 
   // Handle proxy command
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if (host.proxyCommand) {
+  if (resolvedHost.proxyCommand) {
     // Proxy command is not directly supported in bookmark format
     // Could add as description
     bookmark.description = (bookmark.description ?? '') +
       // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       (bookmark.description ? ' | ' : '') +
-      `Proxy: ${host.proxyCommand}`
+      `Proxy: ${resolvedHost.proxyCommand}`
   }
 
   // Handle forward agent
-  if (host.forwardAgent === 'yes' || host.forwardAgent === 'true') {
+  if (resolvedHost.forwardAgent === 'yes' || resolvedHost.forwardAgent === 'true') {
     bookmark.useSshAgent = true
   }
 
   // Handle server alive options
-  if (host.serverAliveInterval !== undefined) {
-    // These are SSH-level options, not stored in bookmark
+  // SSH config uses seconds, electerm uses milliseconds
+  if (resolvedHost.serverAliveInterval !== undefined) {
+    bookmark.keepaliveInterval = resolvedHost.serverAliveInterval * 1000
+  }
+  if (resolvedHost.serverAliveCountMax !== undefined) {
+    bookmark.keepaliveCountMax = resolvedHost.serverAliveCountMax
   }
 
   // Handle connection timeout
-  if (host.connectTimeout !== undefined) {
+  if (resolvedHost.connectTimeout !== undefined) {
     // Could be added as custom field if needed
   }
 
   // Handle control master options (not directly supported in bookmark)
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if (host.controlMaster) {
+  if (resolvedHost.controlMaster) {
     bookmark.description = (bookmark.description ?? '') +
       // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       (bookmark.description ? ' | ' : '') +
-      `ControlMaster: ${host.controlMaster}`
+      `ControlMaster: ${resolvedHost.controlMaster}`
   }
 
   // Store extra options in description or as custom data
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if ((host.extraOptions != null) && Object.keys(host.extraOptions).length > 0) {
-    const extraStr = Object.entries(host.extraOptions)
+  if ((resolvedHost.extraOptions != null) && Object.keys(resolvedHost.extraOptions).length > 0) {
+    const extraStr = Object.entries(resolvedHost.extraOptions)
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       .map(([key, value]) => `${key}=${value}`)
       .join(', ')
@@ -143,11 +210,33 @@ export function sshConfigHostToBookmark (
 }
 
 /**
+ * Options for converting all SSH config hosts to bookmarks
+ */
+export interface SshConfigToBookmarksOptions extends SshConfigHostToBookmarkOptions {
+  /**
+   * If true, exclude wildcard defaults (Host *) from output
+   * Default: true
+   */
+  excludeDefaults?: boolean
+}
+
+/**
  * Convert all SSH config hosts to electerm bookmarks
  */
 export function sshConfigToBookmarks (
   hosts: SshConfigHost[],
-  options: ToBookmarkOptions = {}
+  options: SshConfigToBookmarksOptions = {}
 ): ElectermBookmarkSsh[] {
-  return hosts.map(host => sshConfigHostToBookmark(host, options))
+  const { defaults, excludeDefaults = true, ...restOptions } = options
+
+  // Filter out wildcard hosts if requested
+  const hostsToConvert = excludeDefaults
+    ? hosts.filter(h => h.host !== '*')
+    : hosts
+
+  return hostsToConvert.map(host => sshConfigHostToBookmark(host, {
+    ...restOptions,
+    defaults,
+    hosts
+  }))
 }

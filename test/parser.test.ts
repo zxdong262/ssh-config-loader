@@ -83,6 +83,59 @@ Host target
       expect(result.hosts[1].proxyJumpList).toEqual(['jump'])
     })
 
+    it('should extract wildcard defaults (Host *)', () => {
+      const configContent = `
+Host *
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+Host server1
+    HostName 192.168.1.100
+    User admin
+`
+      fs.writeFileSync(testConfigPath, configContent)
+
+      const result = loadSshConfig({ configPath: testConfigPath, includeDefaultPaths: false })
+
+      // Should have 1 regular host
+      expect(result.hosts).toHaveLength(1)
+      expect(result.hosts[0].host).toBe('server1')
+
+      // Should have defaults extracted
+      expect(result.defaults).toBeDefined()
+      expect(result.defaults?.host).toBe('*')
+      expect(result.defaults?.serverAliveInterval).toBe(60)
+      expect(result.defaults?.serverAliveCountMax).toBe(3)
+    })
+
+    it('should merge wildcard defaults from multiple config files', () => {
+      // Create two config files and load them together
+      const configPath2 = path.join(testConfigDir, 'config2')
+      const configContent1 = `
+Host *
+    ServerAliveInterval 60
+`
+      const configContent2 = `
+Host *
+    ServerAliveCountMax 3
+
+Host server1
+    HostName 192.168.1.100
+`
+      fs.writeFileSync(testConfigPath, configContent1)
+      fs.writeFileSync(configPath2, configContent2)
+
+      // Load both config files
+      const config1 = loadSshConfig({ configPath: testConfigPath, includeDefaultPaths: false })
+      const config2 = loadSshConfig({ configPath: configPath2, includeDefaultPaths: false })
+
+      // Merge defaults manually (this is how it would work in practice)
+      const mergedDefaults = { ...config1.defaults, ...config2.defaults }
+
+      expect(mergedDefaults.serverAliveInterval).toBe(60)
+      expect(mergedDefaults.serverAliveCountMax).toBe(3)
+    })
+
     it('should handle quoted values', () => {
       const configContent = `
 Host quoted

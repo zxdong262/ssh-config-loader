@@ -36,6 +36,10 @@ export interface SshConfigHost {
 export interface SshConfig {
   hosts: SshConfigHost[]
   configPath?: string
+  /**
+   * Wildcard defaults (Host *)
+   */
+  defaults?: SshConfigHost
 }
 
 /**
@@ -83,6 +87,8 @@ export interface ElectermBookmarkSsh {
   sshAgent?: string
   serverHostKey?: string[]
   cipher?: string[]
+  keepaliveInterval?: number
+  keepaliveCountMax?: number
   runScripts?: Array<{
     delay?: number
     script?: string

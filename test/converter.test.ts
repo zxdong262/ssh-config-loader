@@ -114,6 +114,109 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(result.hasHopping).toBe(true)
     })
 
+    it('should resolve jump host details when hosts array is provided', () => {
+      const hosts: SshConfigHost[] = [
+        {
+          host: 'jump',
+          hostName: 'bastion.example.com',
+          user: 'jumpuser',
+          port: 22
+        },
+        {
+          host: 'internal',
+          hostName: '10.0.0.5',
+          user: 'admin',
+          proxyJump: 'jump'
+        }
+      ]
+
+      const result = sshConfigHostToBookmark(hosts[1], { hosts })
+
+      expect(result.connectionHoppings).toBeDefined()
+      expect(result.connectionHoppings).toHaveLength(1)
+      // Should resolve to actual hostname, not the alias
+      expect(result.connectionHoppings?.[0].host).toBe('bastion.example.com')
+      expect(result.connectionHoppings?.[0].username).toBe('jumpuser')
+      expect(result.connectionHoppings?.[0].port).toBe(22)
+      expect(result.hasHopping).toBe(true)
+    })
+
+    it('should apply wildcard defaults to host', () => {
+      const host: SshConfigHost = {
+        host: 'server1',
+        hostName: '192.168.1.100'
+      }
+
+      const defaults: SshConfigHost = {
+        host: '*',
+        user: 'defaultuser',
+        extraOptions: {
+          serverAliveInterval: 60,
+          serverAliveCountMax: 3
+        }
+      }
+
+      const result = sshConfigHostToBookmark(host, { defaults })
+
+      expect(result.username).toBe('defaultuser')
+      expect(result.description).toContain('serverAliveInterval=60')
+      expect(result.description).toContain('serverAliveCountMax=3')
+    })
+
+    it('should let host-specific values override wildcard defaults', () => {
+      const host: SshConfigHost = {
+        host: 'server1',
+        hostName: '192.168.1.100',
+        user: 'specificuser',
+        extraOptions: {
+          serverAliveInterval: 120
+        }
+      }
+
+      const defaults: SshConfigHost = {
+        host: '*',
+        user: 'defaultuser',
+        extraOptions: {
+          serverAliveInterval: 60,
+          serverAliveCountMax: 3
+        }
+      }
+
+      const result = sshConfigHostToBookmark(host, { defaults })
+
+      expect(result.username).toBe('specificuser')
+      expect(result.description).toContain('serverAliveInterval=120')
+      // serverAliveCountMax should still come from defaults
+      expect(result.description).toContain('serverAliveCountMax=3')
+    })
+
+    it('should apply wildcard defaults to proxy jump hosts', () => {
+      const hosts: SshConfigHost[] = [
+        {
+          host: 'jump',
+          hostName: 'bastion.example.com'
+          // No user specified, should use default
+        },
+        {
+          host: 'internal',
+          hostName: '10.0.0.5',
+          proxyJump: 'jump'
+        }
+      ]
+
+      const defaults: SshConfigHost = {
+        host: '*',
+        user: 'defaultuser'
+      }
+
+      const result = sshConfigHostToBookmark(hosts[1], { hosts, defaults })
+
+      expect(result.connectionHoppings).toBeDefined()
+      expect(result.connectionHoppings?.[0].host).toBe('bastion.example.com')
+      // Should use default user for jump host
+      expect(result.connectionHoppings?.[0].username).toBe('defaultuser')
+    })
+
     it('should handle proxy command', () => {
       const host: SshConfigHost = {
         host: 'server1',

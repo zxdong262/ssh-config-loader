@@ -1,6 +1,23 @@
 # Full SSH Config Test File
 # This file covers all common SSH config options
 
+# Wildcard defaults - applies to all hosts
+Host *
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+# Jump host (bastion)
+Host jump
+    HostName bastion.example.com
+    User jumpuser
+    Port 22
+
+# Internal host via jump host
+Host internal
+    HostName 10.0.0.5
+    User admin
+    ProxyJump jump
+
 # Basic configuration
 Host basic-server
     HostName 192.168.1.100
@@ -12,6 +29,21 @@ Host custom-port
     HostName example.com
     User root
     Port 2222
+
+# Wildcard pattern - dev servers
+Host dev-*
+    User developer
+    Port 2222
+
+# Wildcard pattern - staging servers
+Host staging-*
+    User deployer
+    Port 22
+
+# Wildcard pattern with ? (single character)
+Host prod-?
+    User admin
+    Port 22
 
 # Identity file (single)
 Host with-identity

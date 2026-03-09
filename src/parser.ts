@@ -4,6 +4,32 @@ import * as os from 'node:os'
 import type { SshConfig, SshConfigHost, LoadSshConfigOptions } from './types.js'
 
 /**
+ * Check if a host pattern contains wildcards
+ */
+function isWildcardPattern (pattern: string): boolean {
+  return pattern.includes('*') || pattern.includes('?')
+}
+
+/**
+ * Match a hostname against a host pattern
+ * Supports * (match any characters) and ? (match single character)
+ */
+function matchHostPattern (pattern: string, hostname: string): boolean {
+  // Convert glob pattern to regex
+  const regexPattern = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\\\$&') // Escape special regex chars except * and ?
+    .replace(/\*/g, '.*') // * matches any characters
+    .replace(/\?/g, '.') // ? matches single character
+
+  try {
+    const regex = new RegExp(`^${regexPattern}$`)
+    return regex.test(hostname)
+  } catch {
+    return false
+  }
+}
+
+/**
  * Get default SSH config paths
  */
 function getDefaultConfigPaths (): string[] {
@@ -42,7 +68,7 @@ function parseValue (value: string): string {
 /**
  * Parse SSH config content
  */
-function parseConfigContent (content: string): SshConfigHost[] {
+function parseConfigContent (content: string): { hosts: SshConfigHost[], defaults?: SshConfigHost } {
   const hosts: SshConfigHost[] = []
   const lines = content.split('\n')
 
@@ -174,7 +200,18 @@ function parseConfigContent (content: string): SshConfigHost[] {
     hosts.push(currentHost)
   }
 
-  return hosts
+  // Extract wildcard defaults (Host *)
+  const defaultHosts = hosts.filter(h => h.host === '*')
+  const defaults = defaultHosts.length > 0 ? defaultHosts[0] : undefined
+
+  // Filter out only exact wildcard '*' hosts from regular hosts
+  // Keep wildcard patterns like 'dev-*' in the hosts array
+  const regularHosts = hosts.filter(h => h.host !== '*')
+
+  return {
+    hosts: regularHosts,
+    defaults
+  }
 }
 
 /**
@@ -204,11 +241,12 @@ export function loadSshConfig (options: LoadSshConfigOptions = {}): SshConfig {
   // Read and parse all config files
   const allHosts: SshConfigHost[] = []
   let usedConfigPath: string | undefined
+  let combinedDefaults: SshConfigHost | undefined
 
   for (const filePath of configPaths) {
     if (isConfigFileReadable(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8')
-      const hosts = parseConfigContent(content)
+      const { hosts, defaults } = parseConfigContent(content)
 
       // Merge hosts, later configs can override earlier ones
       for (const host of hosts) {
@@ -221,6 +259,15 @@ export function loadSshConfig (options: LoadSshConfigOptions = {}): SshConfig {
         }
       }
 
+      // Merge defaults (later configs override)
+      if (defaults != null) {
+        if (combinedDefaults != null) {
+          combinedDefaults = { ...combinedDefaults, ...defaults }
+        } else {
+          combinedDefaults = defaults
+        }
+      }
+
       if (usedConfigPath === undefined) {
         usedConfigPath = filePath
       }
@@ -229,7 +276,8 @@ export function loadSshConfig (options: LoadSshConfigOptions = {}): SshConfig {
 
   return {
     hosts: allHosts,
-    configPath: usedConfigPath
+    configPath: usedConfigPath,
+    defaults: combinedDefaults
   }
 }
 
@@ -245,4 +293,53 @@ export function loadSshConfigFromFile (filePath: string): SshConfig {
  */
 export function getDefaultConfigPath (): string {
   return path.join(os.homedir(), '.ssh', 'config')
+}
+
+/**
+ * Resolve SSH config for a specific hostname
+ * Matches against exact host, wildcard patterns, and defaults
+ */
+export function resolveHost (
+  hosts: SshConfigHost[],
+  hostname: string,
+  defaults?: SshConfigHost
+): SshConfigHost | undefined {
+  // First try exact match
+  const exactMatch = hosts.find(h => h.host === hostname)
+  if (exactMatch != null) {
+    return exactMatch
+  }
+
+  // Then try wildcard patterns
+  const wildcardMatch = hosts.find(h => isWildcardPattern(h.host) && matchHostPattern(h.host, hostname))
+  if (wildcardMatch != null) {
+    return wildcardMatch
+  }
+
+  return undefined
+}
+
+/**
+ * Get resolved SSH config for a hostname including wildcard and default settings
+ */
+export function getResolvedConfig (
+  hosts: SshConfigHost[],
+  hostname: string,
+  defaults?: SshConfigHost
+): SshConfigHost | undefined {
+  const matchedHost = resolveHost(hosts, hostname, defaults)
+  if (matchedHost == null) {
+    return undefined
+  }
+
+  // Start with defaults, then overlay wildcard match, then exact match would override
+  // However, since we already found a match, we use that directly
+  // The matchedHost already has its specific settings
+
+  // If there are defaults, apply them
+  if (defaults != null) {
+    return { ...defaults, ...matchedHost }
+  }
+
+  return matchedHost
 }

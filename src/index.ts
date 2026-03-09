@@ -9,10 +9,15 @@ import type {
 } from './types.js'
 
 // Parser
-import { loadSshConfig, loadSshConfigFromFile, getDefaultConfigPath } from './parser.js'
+import { loadSshConfig, loadSshConfigFromFile, getDefaultConfigPath, resolveHost, getResolvedConfig } from './parser.js'
 
 // Converter
-import { sshConfigHostToBookmark, sshConfigToBookmarks } from './converter.js'
+import {
+  sshConfigHostToBookmark,
+  sshConfigToBookmarks,
+  type SshConfigHostToBookmarkOptions,
+  type SshConfigToBookmarksOptions
+} from './converter.js'
 
 // Types exports
 export type {
@@ -21,14 +26,18 @@ export type {
   ElectermBookmarkSsh,
   ElectermBookmark,
   LoadSshConfigOptions,
-  ToBookmarkOptions
+  ToBookmarkOptions,
+  SshConfigHostToBookmarkOptions,
+  SshConfigToBookmarksOptions
 }
 
 // Parser exports
 export {
   loadSshConfig,
   loadSshConfigFromFile,
-  getDefaultConfigPath
+  getDefaultConfigPath,
+  resolveHost,
+  getResolvedConfig
 }
 
 // Converter exports
@@ -51,6 +60,7 @@ export function loadAndConvert (
   const config = loadSshConfig(loadOptions)
   return sshConfigToBookmarks(config.hosts, {
     defaultUsername,
-    defaultPort
+    defaultPort,
+    defaults: config.defaults
   })
 }
