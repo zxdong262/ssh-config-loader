@@ -1,0 +1,121 @@
+# Full SSH Config Test File
+# This file covers all common SSH config options
+
+# Basic configuration
+Host basic-server
+    HostName 192.168.1.100
+    User admin
+    Port 22
+
+# Custom port
+Host custom-port
+    HostName example.com
+    User root
+    Port 2222
+
+# Identity file (single)
+Host with-identity
+    HostName server1.example.com
+    User deploy
+    IdentityFile ~/.ssh/id_rsa
+
+# Multiple identity files
+Host multiple-identities
+    HostName server2.example.com
+    User ubuntu
+    IdentityFile ~/.ssh/id_rsa
+    IdentityFile ~/.ssh/id_ed25519
+    IdentityFile ~/.ssh/id_ecdsa
+
+# Proxy jump (single)
+Host via-jump
+    HostName internal.server.com
+    User admin
+    ProxyJump jump.example.com
+
+# Proxy jump (multiple hops)
+Host via-multiple-jumps
+    HostName deep.internal.com
+    User admin
+    ProxyJump jump1.example.com,jump2.example.com
+
+# Proxy command
+Host via-proxy-command
+    HostName proxy-server.com
+    User admin
+    ProxyCommand nc -X 5 -p 1080 %h %p
+
+# Forward agent
+Host with-agent
+    HostName agent-server.com
+    User admin
+    ForwardAgent yes
+
+# Server alive options
+Host with-keepalive
+    HostName keepalive-server.com
+    User admin
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+# Compression
+Host with-compression
+    HostName compress-server.com
+    User admin
+    Compression yes
+
+# Connection attempts and timeout
+Host with-timeout
+    HostName timeout-server.com
+    User admin
+    ConnectionAttempts 3
+    ConnectTimeout 30
+
+# TCP keepalive
+Host with-tcp-keepalive
+    HostName tcp-server.com
+    User admin
+    TCPKeepAlive yes
+
+# Control master
+Host with-control-master
+    HostName control-server.com
+    User admin
+    ControlMaster auto
+    ControlPath ~/.ssh/sockets/%r@%h-%p
+    ControlPersist 600
+
+# Complex host with multiple options
+Host complex-server
+    HostName 10.0.0.100
+    User admin
+    Port 22
+    IdentityFile ~/.ssh/prod_key
+    ForwardAgent yes
+    ServerAliveInterval 30
+    ServerAliveCountMax 2
+    Compression yes
+    TCPKeepAlive yes
+
+# Host alias (no hostname, just alias)
+Host my-alias
+    HostName real-server.example.com
+    User admin
+
+# IPv6 address
+Host ipv6-server
+    HostName 2001:db8::1
+    User admin
+
+# Quoted values
+Host "quoted server"
+    HostName "server with spaces.example.com"
+    User "admin user"
+    Port "2222"
+
+# SSH Certificate Authentication
+Host with-certificate
+    HostName 192.168.1.100
+    User john
+    IdentityFile ./test/id_ed25519_test
+    CertificateFile ./test/id_ed25519_test-cert.pub

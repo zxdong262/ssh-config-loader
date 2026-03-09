@@ -1,0 +1,50 @@
+{
+  "name": "ssh-config-loader",
+  "version": "1.0.0",
+  "description": "A library to read SSH config and convert to electerm bookmark format",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/esm/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md",
+    "README_zh_CN.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "vite build --config build/vite.config.esm.ts",
+    "build:cjs": "vite build --config build/vite.config.cjs.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "ts-standard 'src/**/*.ts'",
+    "lint:fix": "ts-standard 'src/**/*.ts' --fix",
+    "format": "ts-standard 'src/**/*.ts' --format"
+  },
+  "keywords": [
+    "ssh",
+    "config",
+    "ssh-config",
+    "electerm",
+    "bookmark"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.3.1",
+    "vitest": "^2.1.0",
+    "ts-standard": "^12.0.2"
+  }
+}
