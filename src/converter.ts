@@ -178,6 +178,17 @@ export function sshConfigHostToBookmark (
     bookmark.useSshAgent = true
   }
 
+  // Handle identity agent (SSH_AUTH_SOCK)
+  if (resolvedHost.identityAgent != null && resolvedHost.identityAgent !== '') {
+    bookmark.sshAgent = resolvedHost.identityAgent
+    bookmark.useSshAgent = true
+  }
+
+  // Handle identities only (only use specified identities, no agent)
+  if (resolvedHost.identitiesOnly === 'yes' || resolvedHost.identitiesOnly === 'true') {
+    bookmark.useSshAgent = false
+  }
+
   // Handle server alive options
   // SSH config uses seconds, electerm uses milliseconds
   if (resolvedHost.serverAliveInterval !== undefined) {

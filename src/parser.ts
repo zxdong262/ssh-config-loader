@@ -150,6 +150,12 @@ function parseConfigContent (content: string): { hosts: SshConfigHost[], default
         case 'addkeystoagent':
           currentHost.addKeysToAgent = value
           break
+        case 'identitiesonly':
+          currentHost.identitiesOnly = value
+          break
+        case 'identityagent':
+          currentHost.identityAgent = value
+          break
         case 'userknownhostsfile':
           currentHost.userKnownHostsFile = value
           break

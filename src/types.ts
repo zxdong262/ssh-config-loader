@@ -14,6 +14,14 @@ export interface SshConfigHost {
   proxyJumpList?: string[]
   forwardAgent?: string
   addKeysToAgent?: string
+  /**
+   * Specify which identity file to use (SSH config: IdentitiesOnly)
+   */
+  identitiesOnly?: string
+  /**
+   * Agent socket to use (SSH config: IdentityAgent)
+   */
+  identityAgent?: string
   userKnownHostsFile?: string
   strictHostKeyChecking?: string
   serverAliveInterval?: number

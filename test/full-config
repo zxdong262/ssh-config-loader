@@ -197,3 +197,23 @@ Host multi-forward
     LocalForward 3306 mysql.internal.com:3306
     RemoteForward 8080 localhost:3000
     DynamicForward 1080
+
+# Identity Agent
+Host with-identity-agent
+    HostName server.example.com
+    User admin
+    IdentityAgent /run/user/1000/gnupg/S.gpg-agent.ssh
+
+# Identities Only
+Host identities-only
+    HostName server.example.com
+    User admin
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/id_rsa
+
+# Identity Agent and Identities Only
+Host with-agent-config
+    HostName server.example.com
+    User admin
+    IdentityAgent $SSH_AUTH_SOCK
+    IdentitiesOnly yes
