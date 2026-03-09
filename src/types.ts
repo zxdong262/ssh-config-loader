@@ -27,6 +27,34 @@ export interface SshConfigHost {
   controlPersist?: string
   password?: string
   passphrase?: string
+  /**
+   * Local port forwarding - forwards local port to remote
+   * Format: LocalForward [bind_address:]port host:hostport
+   */
+  localForward?: Array<{
+    bindAddress?: string
+    port: number
+    host: string
+    hostPort: number
+  }>
+  /**
+   * Remote port forwarding - forwards remote port to local
+   * Format: RemoteForward [bind_address:]port host:hostport
+   */
+  remoteForward?: Array<{
+    bindAddress?: string
+    port: number
+    host: string
+    hostPort: number
+  }>
+  /**
+   * Dynamic port forwarding - SOCKS proxy
+   * Format: DynamicForward [bind_address:]port
+   */
+  dynamicForward?: Array<{
+    bindAddress?: string
+    port: number
+  }>
   extraOptions?: Record<string, string | number | undefined>
 }
 
@@ -64,6 +92,7 @@ export interface ElectermBookmarkSsh {
   enableSsh?: boolean
   enableSftp?: boolean
   sshTunnels?: Array<{
+    id?: string
     sshTunnel: string
     sshTunnelLocalHost?: string
     sshTunnelLocalPort?: number
@@ -72,6 +101,7 @@ export interface ElectermBookmarkSsh {
     name?: string
   }>
   connectionHoppings?: Array<{
+    id?: string
     host: string
     port?: number
     username?: string

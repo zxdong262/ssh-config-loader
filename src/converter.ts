@@ -46,6 +46,13 @@ function applyDefaults (host: SshConfigHost, defaults?: SshConfigHost): SshConfi
 }
 
 /**
+ * Generate a unique ID
+ */
+function generateId (): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+}
+
+/**
  * Read private key or certificate content
  */
 function readPrivateKey (keyPath: string): KeyResult {
@@ -142,6 +149,7 @@ export function sshConfigHostToBookmark (
       const jumpUsername = resolvedJumpHost.user ?? resolvedHost.user ?? defaultUsername ?? ''
 
       return {
+        id: generateId(),
         host: resolvedJumpHost.hostName ?? jumpHostName,
         port: resolvedJumpHost.port ?? 22,
         username: jumpUsername,
@@ -204,6 +212,50 @@ export function sshConfigHostToBookmark (
       // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       (bookmark.description ? ' | ' : '') +
       `Extra: ${extraStr}`
+  }
+
+  // Handle port forwarding
+  // LocalForward: forwardLocalToRemote (local -> remote)
+  if (resolvedHost.localForward != null && resolvedHost.localForward.length > 0) {
+    bookmark.sshTunnels = bookmark.sshTunnels ?? []
+    for (const forward of resolvedHost.localForward) {
+      bookmark.sshTunnels.push({
+        id: generateId(),
+        sshTunnel: 'forwardLocalToRemote',
+        sshTunnelLocalHost: forward.bindAddress ?? '127.0.0.1',
+        sshTunnelLocalPort: forward.port,
+        sshTunnelRemoteHost: forward.host,
+        sshTunnelRemotePort: forward.hostPort
+      })
+    }
+  }
+
+  // RemoteForward: forwardRemoteToLocal (remote -> local)
+  if (resolvedHost.remoteForward != null && resolvedHost.remoteForward.length > 0) {
+    bookmark.sshTunnels = bookmark.sshTunnels ?? []
+    for (const forward of resolvedHost.remoteForward) {
+      bookmark.sshTunnels.push({
+        id: generateId(),
+        sshTunnel: 'forwardRemoteToLocal',
+        sshTunnelLocalHost: forward.bindAddress ?? '127.0.0.1',
+        sshTunnelLocalPort: forward.port,
+        sshTunnelRemoteHost: forward.host,
+        sshTunnelRemotePort: forward.hostPort
+      })
+    }
+  }
+
+  // DynamicForward: dynamicForward (SOCKS proxy)
+  if (resolvedHost.dynamicForward != null && resolvedHost.dynamicForward.length > 0) {
+    bookmark.sshTunnels = bookmark.sshTunnels ?? []
+    for (const forward of resolvedHost.dynamicForward) {
+      bookmark.sshTunnels.push({
+        id: generateId(),
+        sshTunnel: 'dynamicForward',
+        sshTunnelLocalHost: forward.bindAddress ?? '127.0.0.1',
+        sshTunnelLocalPort: forward.port
+      })
+    }
   }
 
   return bookmark

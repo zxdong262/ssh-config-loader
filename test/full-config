@@ -151,3 +151,49 @@ Host with-certificate
     User john
     IdentityFile ./test/id_ed25519_test
     CertificateFile ./test/id_ed25519_test-cert.pub
+
+# Local port forwarding
+Host local-forward
+    HostName db-server.internal.com
+    User admin
+    LocalForward 3306 mysql.internal.com:3306
+    LocalForward 8080 localhost:8080
+
+# Local port forwarding with bind address
+Host local-forward-bind
+    HostName app-server.internal.com
+    User developer
+    LocalForward 0.0.0.0:9000 remote-app:9000
+
+# Remote port forwarding
+Host remote-forward
+    HostName bastion.example.com
+    User admin
+    RemoteForward 8080 localhost:3000
+    RemoteForward 2222 localhost:22
+
+# Remote port forwarding with bind address
+Host remote-forward-bind
+    HostName bastion.example.com
+    User admin
+    RemoteForward 0.0.0.0:8080 localhost:8080
+
+# Dynamic port forwarding (SOCKS proxy)
+Host dynamic-forward
+    HostName proxy.example.com
+    User admin
+    DynamicForward 1080
+
+# Dynamic port forwarding with bind address
+Host dynamic-forward-bind
+    HostName proxy.example.com
+    User admin
+    DynamicForward 0.0.0.0:1080
+
+# Multiple port forwards combined
+Host multi-forward
+    HostName server.example.com
+    User admin
+    LocalForward 3306 mysql.internal.com:3306
+    RemoteForward 8080 localhost:3000
+    DynamicForward 1080

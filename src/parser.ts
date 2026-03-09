@@ -183,6 +183,55 @@ function parseConfigContent (content: string): { hosts: SshConfigHost[], default
         case 'controlpersist':
           currentHost.controlPersist = value
           break
+        case 'localforward': {
+          // Format: LocalForward [bind_address:]port host:hostport
+          const forwardMatch = value.match(/^(?:(\S+):)?(\d+)\s+(\S+):(\d+)$/)
+          if (forwardMatch != null) {
+            const [, bindAddress, port, host, hostPort] = forwardMatch
+            if (currentHost.localForward == null) {
+              currentHost.localForward = []
+            }
+            currentHost.localForward.push({
+              bindAddress: bindAddress !== undefined && bindAddress !== '' ? bindAddress : undefined,
+              port: parseInt(port, 10),
+              host,
+              hostPort: parseInt(hostPort, 10)
+            })
+          }
+          break
+        }
+        case 'remoteforward': {
+          // Format: RemoteForward [bind_address:]port host:hostport
+          const forwardMatch = value.match(/^(?:(\S+):)?(\d+)\s+(\S+):(\d+)$/)
+          if (forwardMatch != null) {
+            const [, bindAddress, port, host, hostPort] = forwardMatch
+            if (currentHost.remoteForward == null) {
+              currentHost.remoteForward = []
+            }
+            currentHost.remoteForward.push({
+              bindAddress: bindAddress !== undefined && bindAddress !== '' ? bindAddress : undefined,
+              port: parseInt(port, 10),
+              host,
+              hostPort: parseInt(hostPort, 10)
+            })
+          }
+          break
+        }
+        case 'dynamicforward': {
+          // Format: DynamicForward [bind_address:]port
+          const forwardMatch = value.match(/^(?:(\S+):)?(\d+)$/)
+          if (forwardMatch != null) {
+            const [, bindAddress, port] = forwardMatch
+            if (currentHost.dynamicForward == null) {
+              currentHost.dynamicForward = []
+            }
+            currentHost.dynamicForward.push({
+              bindAddress: bindAddress !== undefined && bindAddress !== '' ? bindAddress : undefined,
+              port: parseInt(port, 10)
+            })
+          }
+          break
+        }
         default:
           // Store any unknown options in extraOptions
           if (currentHost.extraOptions !== undefined) {
