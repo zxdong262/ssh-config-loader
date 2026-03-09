@@ -78,6 +78,7 @@ export interface ElectermBookmarkSsh {
     authType?: string
     profile?: string
   }>
+  hasHopping?: boolean
   useSshAgent?: boolean
   sshAgent?: string
   serverHostKey?: string[]

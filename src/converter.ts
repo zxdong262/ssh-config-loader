@@ -88,6 +88,7 @@ export function sshConfigHostToBookmark (
       }
     })
     bookmark.connectionHoppings = hops
+    bookmark.hasHopping = true
   }
 
   // Handle proxy command

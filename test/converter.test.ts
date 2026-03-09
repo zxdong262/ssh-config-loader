@@ -22,6 +22,19 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(result.title).toBe('server1')
     })
 
+    it('should not set hasHopping when there is no proxyJump', () => {
+      const host: SshConfigHost = {
+        host: 'server1',
+        hostName: '192.168.1.100',
+        user: 'admin',
+        port: 22
+      }
+
+      const result = sshConfigHostToBookmark(host)
+
+      expect(result.hasHopping).toBeUndefined()
+    })
+
     it('should use hostname as host if hostName is not set', () => {
       const host: SshConfigHost = {
         host: 'server1'
@@ -82,6 +95,7 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(result.connectionHoppings).toHaveLength(1)
       expect(result.connectionHoppings?.[0].host).toBe('jump.example.com')
       expect(result.connectionHoppings?.[0].username).toBe('admin')
+      expect(result.hasHopping).toBe(true)
     })
 
     it('should handle multiple proxy jumps', () => {
@@ -97,6 +111,7 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(result.connectionHoppings).toHaveLength(2)
       expect(result.connectionHoppings?.[0].host).toBe('jump1.example.com')
       expect(result.connectionHoppings?.[1].host).toBe('jump2.example.com')
+      expect(result.hasHopping).toBe(true)
     })
 
     it('should handle proxy command', () => {
