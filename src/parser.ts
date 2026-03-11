@@ -17,7 +17,7 @@ function isWildcardPattern (pattern: string): boolean {
 function matchHostPattern (pattern: string, hostname: string): boolean {
   // Convert glob pattern to regex
   const regexPattern = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\\\$&') // Escape special regex chars except * and ?
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars except * and ?
     .replace(/\*/g, '.*') // * matches any characters
     .replace(/\?/g, '.') // ? matches single character
 
@@ -35,8 +35,7 @@ function matchHostPattern (pattern: string, hostname: string): boolean {
 function getDefaultConfigPaths (): string[] {
   const homeDir = os.homedir()
   return [
-    path.join(homeDir, '.ssh', 'config'),
-    path.join(homeDir, '.ssh', 'config.')
+    path.join(homeDir, '.ssh', 'config')
   ]
 }
 
@@ -83,8 +82,8 @@ function parseConfigContent (content: string): { hosts: SshConfigHost[], default
       continue
     }
 
-    // Split by first whitespace to get key and value
-    const match = trimmedLine.match(/^(\S+)\s+(.*)$/)
+    // Split by first whitespace or '=' to get key and value
+    const match = trimmedLine.match(/^(\S+?)\s*=\s*(.+)$/) ?? trimmedLine.match(/^(\S+)\s+(.*)$/)
     if (match == null) {
       continue
     }

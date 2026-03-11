@@ -382,5 +382,45 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(result.username).toBe('specificuser')
       expect(result.port).toBe(2222)
     })
+
+    it('should resolve jump hosts through sshConfigToBookmarks', () => {
+      const hosts: SshConfigHost[] = [
+        {
+          host: 'jump',
+          hostName: 'bastion.example.com',
+          user: 'jumpuser',
+          port: 22
+        },
+        {
+          host: 'internal',
+          hostName: '10.0.0.5',
+          user: 'admin',
+          proxyJump: 'jump'
+        }
+      ]
+
+      const results = sshConfigToBookmarks(hosts, { hosts })
+
+      const internalBookmark = results.find(r => r.title === 'internal')
+      expect(internalBookmark).toBeDefined()
+      expect(internalBookmark?.connectionHoppings).toBeDefined()
+      expect(internalBookmark?.connectionHoppings).toHaveLength(1)
+      // Should resolve jump host alias to actual hostname
+      expect(internalBookmark?.connectionHoppings?.[0].host).toBe('bastion.example.com')
+      expect(internalBookmark?.connectionHoppings?.[0].username).toBe('jumpuser')
+    })
+
+    it('should match wildcard patterns containing dots (e.g. 192.168.1.*)', () => {
+      const hosts: SshConfigHost[] = [
+        { host: '192.168.1.*', user: 'netadmin', port: 22 },
+        { host: '192.168.1.100', hostName: '192.168.1.100' }
+      ]
+
+      const results = sshConfigToBookmarks(hosts)
+
+      expect(results).toHaveLength(1)
+      expect(results[0].title).toBe('192.168.1.100')
+      expect(results[0].username).toBe('netadmin')
+    })
   })
 })

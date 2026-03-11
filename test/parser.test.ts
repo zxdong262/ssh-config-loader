@@ -223,4 +223,38 @@ Host testserver
       expect(result.hosts[0].host).toBe('testserver')
     })
   })
+
+  describe('= separator support', () => {
+    it('should parse Key=Value syntax', () => {
+      const configContent = `
+Host server1
+    HostName=192.168.1.100
+    User=admin
+    Port=2222
+`
+      fs.writeFileSync(testConfigPath, configContent)
+
+      const result = loadSshConfig({ configPath: testConfigPath, includeDefaultPaths: false })
+
+      expect(result.hosts).toHaveLength(1)
+      expect(result.hosts[0].hostName).toBe('192.168.1.100')
+      expect(result.hosts[0].user).toBe('admin')
+      expect(result.hosts[0].port).toBe(2222)
+    })
+
+    it('should parse Key = Value syntax with spaces around =', () => {
+      const configContent = `
+Host server1
+    HostName = example.com
+    User = root
+`
+      fs.writeFileSync(testConfigPath, configContent)
+
+      const result = loadSshConfig({ configPath: testConfigPath, includeDefaultPaths: false })
+
+      expect(result.hosts).toHaveLength(1)
+      expect(result.hosts[0].hostName).toBe('example.com')
+      expect(result.hosts[0].user).toBe('root')
+    })
+  })
 })

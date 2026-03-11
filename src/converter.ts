@@ -14,7 +14,7 @@ function isWildcardPattern (pattern: string): boolean {
 
 function matchHostPattern (pattern: string, hostname: string): boolean {
   const regexPattern = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\\\$&')
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
     .replace(/\*/g, '.*')
     .replace(/\?/g, '.')
 
@@ -330,11 +330,9 @@ export function sshConfigToBookmarks (
     ? hostsToFilter.filter(h => !isWildcardPattern(h.host))
     : hostsToFilter
 
-  const wildcardPatterns = hostsToFilter.filter(h => isWildcardPattern(h.host) && h.host !== '*')
-
   return hostsToConvert.map(host => sshConfigHostToBookmark(host, {
     ...restOptions,
     defaults,
-    hosts: wildcardPatterns
+    hosts: hostsToFilter
   }))
 }
