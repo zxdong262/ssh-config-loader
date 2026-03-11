@@ -45,6 +45,28 @@ Host prod-?
     User admin
     Port 22
 
+# Actual hosts matching wildcard patterns (these should inherit from wildcards)
+Host dev-server1
+    HostName dev1.example.com
+
+Host dev-server2
+    HostName dev2.example.com
+
+Host dev-db
+    HostName dev-db.example.com
+
+Host staging-web
+    HostName staging-web.example.com
+
+Host staging-api
+    HostName staging-api.example.com
+
+Host prod-a
+    HostName prod-a.example.com
+
+Host prod-z
+    HostName prod-z.example.com
+
 # Identity file (single)
 Host with-identity
     HostName server1.example.com

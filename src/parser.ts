@@ -260,7 +260,7 @@ function parseConfigContent (content: string): { hosts: SshConfigHost[], default
   const defaults = defaultHosts.length > 0 ? defaultHosts[0] : undefined
 
   // Filter out only exact wildcard '*' hosts from regular hosts
-  // Keep wildcard patterns like 'dev-*' in the hosts array
+  // Keep wildcard patterns like 'dev-*' in the hosts array for pattern matching
   const regularHosts = hosts.filter(h => h.host !== '*')
 
   return {

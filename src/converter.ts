@@ -8,6 +8,24 @@ interface KeyResult {
   path?: string
 }
 
+function isWildcardPattern (pattern: string): boolean {
+  return pattern.includes('*') || pattern.includes('?')
+}
+
+function matchHostPattern (pattern: string, hostname: string): boolean {
+  const regexPattern = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.')
+
+  try {
+    const regex = new RegExp(`^${regexPattern}$`)
+    return regex.test(hostname)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Find a host config by name (host alias)
  * Used to resolve jump host details
@@ -96,8 +114,22 @@ export function sshConfigHostToBookmark (
 ): ElectermBookmarkSsh {
   const { defaultUsername, defaultPort = 22, defaults, hosts } = options
 
-  // Apply wildcard defaults if provided
-  const resolvedHost = applyDefaults(host, defaults)
+  let resolvedHost = host
+
+  if (hosts != null) {
+    const wildcardPatterns = hosts
+      .filter(h => isWildcardPattern(h.host) && h.host !== '*')
+      .filter(pattern => matchHostPattern(pattern.host, host.host))
+      .sort((a, b) => a.host.length - b.host.length)
+
+    for (const pattern of wildcardPatterns) {
+      resolvedHost = applyDefaults(resolvedHost, pattern)
+    }
+  }
+
+  if (defaults != null) {
+    resolvedHost = applyDefaults(resolvedHost, defaults)
+  }
 
   const bookmark: ElectermBookmarkSsh = {
     type: 'ssh',
@@ -290,16 +322,19 @@ export function sshConfigToBookmarks (
   hosts: SshConfigHost[],
   options: SshConfigToBookmarksOptions = {}
 ): ElectermBookmarkSsh[] {
-  const { defaults, excludeDefaults = true, ...restOptions } = options
+  const { defaults, excludeDefaults = true, hosts: allHosts, ...restOptions } = options
 
-  // Filter out wildcard hosts if requested
+  const hostsToFilter = allHosts ?? hosts
+
   const hostsToConvert = excludeDefaults
-    ? hosts.filter(h => h.host !== '*')
-    : hosts
+    ? hostsToFilter.filter(h => !isWildcardPattern(h.host))
+    : hostsToFilter
+
+  const wildcardPatterns = hostsToFilter.filter(h => isWildcardPattern(h.host) && h.host !== '*')
 
   return hostsToConvert.map(host => sshConfigHostToBookmark(host, {
     ...restOptions,
     defaults,
-    hosts
+    hosts: wildcardPatterns
   }))
 }

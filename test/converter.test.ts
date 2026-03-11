@@ -275,5 +275,112 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(results[1].title).toBe('server2')
       expect(results[1].port).toBe(2222)
     })
+
+    it('should apply wildcard pattern (dev-*) to matching hosts', () => {
+      const hosts: SshConfigHost[] = [
+        { host: 'dev-*', user: 'developer', port: 2222 },
+        { host: 'dev-server1', hostName: 'dev1.example.com' },
+        { host: 'dev-db', hostName: 'dev-db.example.com' },
+        { host: 'regular-server', hostName: 'regular.example.com', user: 'admin' }
+      ]
+
+      const results = sshConfigToBookmarks(hosts)
+
+      expect(results).toHaveLength(3)
+
+      const devServer1 = results.find(r => r.title === 'dev-server1')
+      expect(devServer1).toBeDefined()
+      expect(devServer1?.username).toBe('developer')
+      expect(devServer1?.port).toBe(2222)
+
+      const devDb = results.find(r => r.title === 'dev-db')
+      expect(devDb).toBeDefined()
+      expect(devDb?.username).toBe('developer')
+      expect(devDb?.port).toBe(2222)
+
+      const regular = results.find(r => r.title === 'regular-server')
+      expect(regular).toBeDefined()
+      expect(regular?.username).toBe('admin')
+    })
+
+    it('should not include wildcard pattern hosts in output', () => {
+      const hosts: SshConfigHost[] = [
+        { host: 'dev-*', user: 'developer', port: 2222 },
+        { host: 'dev-server1', hostName: 'dev1.example.com' }
+      ]
+
+      const results = sshConfigToBookmarks(hosts)
+
+      expect(results).toHaveLength(1)
+      expect(results[0].title).toBe('dev-server1')
+    })
+
+    it('should apply ? wildcard pattern to matching hosts', () => {
+      const hosts: SshConfigHost[] = [
+        { host: 'prod-?', user: 'prodadmin', port: 2222 },
+        { host: 'prod-a', hostName: 'prod-a.example.com' },
+        { host: 'prod-b', hostName: 'prod-b.example.com' },
+        { host: 'prod-ab', hostName: 'prod-ab.example.com' }
+      ]
+
+      const results = sshConfigToBookmarks(hosts)
+
+      const prodA = results.find(r => r.title === 'prod-a')
+      expect(prodA).toBeDefined()
+      expect(prodA?.username).toBe('prodadmin')
+      expect(prodA?.port).toBe(2222)
+
+      const prodB = results.find(r => r.title === 'prod-b')
+      expect(prodB).toBeDefined()
+      expect(prodB?.username).toBe('prodadmin')
+
+      const prodAb = results.find(r => r.title === 'prod-ab')
+      expect(prodAb).toBeDefined()
+      expect(prodAb?.username).toBe('')
+    })
+
+    it('should let wildcard pattern (dev-*) override Host * defaults', () => {
+      const hosts: SshConfigHost[] = [
+        { host: '*', user: 'defaultuser', port: 22 },
+        { host: 'dev-*', user: 'developer', port: 2222 },
+        { host: 'dev-server1', hostName: 'dev1.example.com' }
+      ]
+
+      const defaults: SshConfigHost = { host: '*', user: 'defaultuser', port: 22 }
+
+      const result = sshConfigHostToBookmark(hosts[2], { hosts, defaults })
+
+      expect(result.username).toBe('developer')
+      expect(result.port).toBe(2222)
+    })
+
+    it('should apply Host * defaults after wildcard pattern', () => {
+      const hosts: SshConfigHost[] = [
+        { host: 'dev-*', user: 'developer' },
+        { host: 'dev-server1', hostName: 'dev1.example.com' }
+      ]
+
+      const defaults: SshConfigHost = { host: '*', port: 2222 }
+
+      const result = sshConfigHostToBookmark(hosts[1], { hosts, defaults })
+
+      expect(result.username).toBe('developer')
+      expect(result.port).toBe(2222)
+    })
+
+    it('should let host-specific values override both wildcard pattern and Host * defaults', () => {
+      const hosts: SshConfigHost[] = [
+        { host: '*', user: 'defaultuser', port: 22 },
+        { host: 'dev-*', user: 'developer', port: 2222 },
+        { host: 'dev-server1', hostName: 'dev1.example.com', user: 'specificuser' }
+      ]
+
+      const defaults: SshConfigHost = { host: '*', user: 'defaultuser', port: 22 }
+
+      const result = sshConfigHostToBookmark(hosts[2], { hosts, defaults })
+
+      expect(result.username).toBe('specificuser')
+      expect(result.port).toBe(2222)
+    })
   })
 })

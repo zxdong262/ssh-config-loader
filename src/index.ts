@@ -58,9 +58,11 @@ export function loadAndConvert (
   const { defaultUsername, defaultPort, ...loadOptions } = options
 
   const config = loadSshConfig(loadOptions)
+
   return sshConfigToBookmarks(config.hosts, {
     defaultUsername,
     defaultPort,
-    defaults: config.defaults
+    defaults: config.defaults,
+    hosts: config.hosts
   })
 }
