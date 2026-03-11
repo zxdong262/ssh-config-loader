@@ -422,5 +422,32 @@ describe('SSH Config to Bookmark Converter', () => {
       expect(results[0].title).toBe('192.168.1.100')
       expect(results[0].username).toBe('netadmin')
     })
+
+    it('should not produce bookmarks for wildcard-only hosts with no real target', () => {
+      const hosts: SshConfigHost[] = [
+        { host: 'dev-*', user: 'developer', port: 2222 },
+        { host: 'staging-*', user: 'deployer' },
+        { host: 'real-server', hostName: 'example.com', user: 'admin' }
+      ]
+
+      const results = sshConfigToBookmarks(hosts)
+
+      // Only real-server should be converted
+      expect(results).toHaveLength(1)
+      expect(results[0].title).toBe('real-server')
+      expect(results[0].host).toBe('example.com')
+    })
+
+    it('should not produce bookmarks with empty host', () => {
+      const hosts: SshConfigHost[] = [
+        { host: '', user: 'admin' },
+        { host: 'real-server', hostName: '10.0.0.1', user: 'admin' }
+      ]
+
+      const results = sshConfigToBookmarks(hosts)
+
+      expect(results).toHaveLength(1)
+      expect(results[0].host).toBe('10.0.0.1')
+    })
   })
 })

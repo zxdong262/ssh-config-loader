@@ -330,9 +330,15 @@ export function sshConfigToBookmarks (
     ? hostsToFilter.filter(h => !isWildcardPattern(h.host))
     : hostsToFilter
 
-  return hostsToConvert.map(host => sshConfigHostToBookmark(host, {
-    ...restOptions,
-    defaults,
-    hosts: hostsToFilter
-  }))
+  return hostsToConvert
+    .filter(h => {
+      // Must have a real connectable host (hostName or a non-empty alias)
+      const effectiveHost = h.hostName ?? h.host
+      return effectiveHost !== '' && !isWildcardPattern(effectiveHost)
+    })
+    .map(host => sshConfigHostToBookmark(host, {
+      ...restOptions,
+      defaults,
+      hosts: hostsToFilter
+    }))
 }
